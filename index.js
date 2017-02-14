@@ -266,7 +266,7 @@ function getMIMEFromBuffer(buffer, path) {
     if (fileTypeFromBuffer) {
         // If FileType returns something for buffer, then return the mime given
         return fileTypeFromBuffer.mime;
-    }    else if (path) {
+    } else if (path) {
         // If a path is supplied, and FileType yields no results, then retry with MIME
         // Path can be either a file path or a url
         return MIME.lookup(path)
@@ -1058,10 +1058,10 @@ Jimp.prototype.autocrop = function() {
 
     if (doCrop) { // do the real crop
         this.crop(
-           eastPixelsToCrop,
-           northPixelsToCrop,
-           widthOfPixelsToCrop,
-           heightOfPixelsToCrop
+            eastPixelsToCrop,
+            northPixelsToCrop,
+            widthOfPixelsToCrop,
+            heightOfPixelsToCrop
        );
     }
 
