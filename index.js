@@ -295,38 +295,38 @@ function parseBitmap(data, mime, cb) {
     this._originalMime = mime.toLowerCase();
 
     switch (this.getMIME()) {
-    case Jimp.MIME_PNG:
-        var png = new PNG();
-        png.parse(data, function(err, data) {
-            if (err) return throwError.call(that, err, cb);
-            that.bitmap = {
-                data: new Buffer(data.data),
-                width: data.width,
-                height: data.height
-            };
-            return cb.call(that, null, that);
-        });
-        break;
+        case Jimp.MIME_PNG:
+            var png = new PNG();
+            png.parse(data, function(err, data) {
+                if (err) return throwError.call(that, err, cb);
+                that.bitmap = {
+                    data: new Buffer(data.data),
+                    width: data.width,
+                    height: data.height
+                };
+                return cb.call(that, null, that);
+            });
+            break;
 
-    case Jimp.MIME_JPEG:
-        try {
-            this.bitmap = JPEG.decode(data);
-            exifRotate(this, data); // EXIF data
+        case Jimp.MIME_JPEG:
+            try {
+                this.bitmap = JPEG.decode(data);
+                exifRotate(this, data); // EXIF data
+                return cb.call(this, null, this);
+            } catch(err) {
+                return cb.call(this, err, this);
+            }
+
+        case Jimp.MIME_BMP:
+            this.bitmap = BMP.decode(data);
             return cb.call(this, null, this);
-        } catch(err) {
-            return cb.call(this, err, this);
-        }
 
-    case Jimp.MIME_BMP:
-        this.bitmap = BMP.decode(data);
-        return cb.call(this, null, this);
+        case Jimp.MIME_JGD:
+            this.bitmap = JGD.decode(data);
+            return cb.call(this, null, this);
 
-    case Jimp.MIME_JGD:
-        this.bitmap = JGD.decode(data);
-        return cb.call(this, null, this);
-
-    default:
-        return throwError.call(this, "Unsupported MIME type: " + mime, cb);
+        default:
+            return throwError.call(this, "Unsupported MIME type: " + mime, cb);
     }
 }
 
@@ -345,30 +345,30 @@ function exifRotate(image, buffer) {
     }
     if (!exif || !exif.tags || !exif.tags.Orientation) return;
     switch (exif.tags.Orientation) {
-    case 1: // Horizontal (normal)
-            // do nothing
-        break;
-    case 2: // Mirror horizontal
-        image.mirror(true, false);
-        break;
-    case 3: // Rotate 180
-        image.rotate(180);
-        break;
-    case 4: // Mirror vertical
-        image.mirror(false, true);
-        break;
-    case 5: // Mirror horizontal and rotate 270 CW
-        image.mirror(true, false).rotate(270);
-        break;
-    case 6: // Rotate 90 CW
-        image.rotate(90);
-        break;
-    case 7: // Mirror horizontal and rotate 90 CW
-        image.mirror(true, false).rotate(90);
-        break;
-    case 8: // Rotate 270 CW
-        image.rotate(270);
-        break;
+        case 1: // Horizontal (normal)
+                // do nothing
+            break;
+        case 2: // Mirror horizontal
+            image.mirror(true, false);
+            break;
+        case 3: // Rotate 180
+            image.rotate(180);
+            break;
+        case 4: // Mirror vertical
+            image.mirror(false, true);
+            break;
+        case 5: // Mirror horizontal and rotate 270 CW
+            image.mirror(true, false).rotate(270);
+            break;
+        case 6: // Rotate 90 CW
+            image.rotate(90);
+            break;
+        case 7: // Mirror horizontal and rotate 90 CW
+            image.mirror(true, false).rotate(90);
+            break;
+        case 8: // Rotate 270 CW
+            image.rotate(270);
+            break;
     }
 }
 
@@ -494,14 +494,12 @@ Jimp.diff = function (img1, img2, threshold) {
         return throwError.call(this, "img1 and img2 must be an Jimp images");
 
     if (img1.bitmap.width != img2.bitmap.width || img1.bitmap.height != img2.bitmap.height) {
-        switch (img1.bitmap.width * img1.bitmap.height > img2.bitmap.width * img2.bitmap.height) {
-        case true: // img1 is bigger
+        if (img1.bitmap.width * img1.bitmap.height > img2.bitmap.width * img2.bitmap.height) {
+            // img1 is bigger
             img1 = img1.clone().resize(img2.bitmap.width, img2.bitmap.height);
-            break;
-        default:
-                // img2 is bigger (or they are the same in area)
+        } else {
+            // img2 is bigger (or they are the same in area)
             img2 = img2.clone().resize(img1.bitmap.width, img1.bitmap.height);
-            break;
         }
     }
 
@@ -2127,39 +2125,39 @@ Jimp.prototype.getBuffer = function (mime, cb) {
         return throwError.call(this, "cb must be a function", cb);
 
     switch (mime.toLowerCase()) {
-    case Jimp.MIME_PNG:
-        var that = this;
-        var png = new PNG({
-            width: this.bitmap.width,
-            height:this.bitmap.height,
-            bitDepth: 8,
-            deflateLevel: this._deflateLevel,
-            deflateStrategy: this._deflateStrategy,
-            filterType: this._filterType,
-            colorType: (this._rgba) ? 6 : 2,
-            inputHasAlpha: true
-        });
+        case Jimp.MIME_PNG:
+            var that = this;
+            var png = new PNG({
+                width: this.bitmap.width,
+                height:this.bitmap.height,
+                bitDepth: 8,
+                deflateLevel: this._deflateLevel,
+                deflateStrategy: this._deflateStrategy,
+                filterType: this._filterType,
+                colorType: (this._rgba) ? 6 : 2,
+                inputHasAlpha: true
+            });
 
-        if (this._rgba) png.data = new Buffer(this.bitmap.data);
-        else png.data = compositeBitmapOverBackground(this).data; // when PNG doesn't support alpha
+            if (this._rgba) png.data = new Buffer(this.bitmap.data);
+            else png.data = compositeBitmapOverBackground(this).data; // when PNG doesn't support alpha
 
-        StreamToBuffer(png.pack(), function (err, buffer) {
-            return cb.call(that, null, buffer);
-        });
-        break;
+            StreamToBuffer(png.pack(), function (err, buffer) {
+                return cb.call(that, null, buffer);
+            });
+            break;
 
-    case Jimp.MIME_JPEG:
-            // composite onto a new image so that the background shows through alpha channels
-        var jpeg = JPEG.encode(compositeBitmapOverBackground(this), this._quality);
-        return cb.call(this, null, jpeg.data);
+        case Jimp.MIME_JPEG:
+                // composite onto a new image so that the background shows through alpha channels
+            var jpeg = JPEG.encode(compositeBitmapOverBackground(this), this._quality);
+            return cb.call(this, null, jpeg.data);
 
-    case Jimp.MIME_BMP:
-            // composite onto a new image so that the background shows through alpha channels
-        var bmp = BMP.encode(compositeBitmapOverBackground(this));
-        return cb.call(this, null, bmp.data);
+        case Jimp.MIME_BMP:
+                // composite onto a new image so that the background shows through alpha channels
+            var bmp = BMP.encode(compositeBitmapOverBackground(this));
+            return cb.call(this, null, bmp.data);
 
-    default:
-        return cb.call(this, "Unsupported MIME type: " + mime);
+        default:
+            return cb.call(this, "Unsupported MIME type: " + mime);
     }
 
     return this;
