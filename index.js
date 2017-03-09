@@ -256,8 +256,8 @@ Jimp.read = function (src, cb) {
                 if (err) reject(err);
                 else resolve(image);
             }
-            if (typeof src !== "string" && (typeof src !== "object" || !Buffer.isBuffer(src)))
-                return throwError.call(this, "src must be a string or a Buffer", cb);
+            if (typeof src !== "string" && typeof src !== "object")
+                return throwError.call(this, "src must be a string path or an object or a Buffer", cb);
             new Jimp(src, cb);
         }
     );
