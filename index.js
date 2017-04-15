@@ -2086,6 +2086,121 @@ Jimp.prototype.rotate = function (deg, mode, cb) {
     else return this;
 };
 
+
+/**
+ * Skews the image horizontally and vertically by the specified degrees
+ * @param hDeg the number of degress to skew the image horizontally
+ * @param vDeg the number of degress to skew the image vertically
+ * @param (optional) cb a callback for when complete
+ * @returns this for chaining of methods
+ */
+Jimp.prototype.skew = function (hDeg, vDeg, cb) {
+    if ("number" != typeof hDeg)
+        return throwError.call(this, "hDeg must be a number", cb);
+
+    if ("number" != typeof vDeg)
+        return throwError.call(this, "vDeg must be a number", cb);
+
+    function genDstPts(hDeg, vDeg, p){
+        function degCos(x){
+            return Math.cos((x % 360) * Math.PI / 180);
+        }
+        function degSin(x){
+            return Math.sin((x % 360) * Math.PI / 180);
+        }
+        
+        // Do Adjustments
+        var xMax = p[6];
+        var yMax = p[7];
+
+        var BLx = p[0]*degCos(hDeg)+((degSin(vDeg)*xMax)/2);
+        var BLy = p[1]*degCos(vDeg)+((degSin(hDeg)*yMax)/2);
+
+        var TLx = p[2]*degCos(hDeg)+((degSin(vDeg)*xMax)/2);
+        var TLy = p[3]*degCos(vDeg)-((degSin(hDeg)*yMax)/2);
+
+        var BRx = p[4]*degCos(hDeg)+((degSin(vDeg)*xMax)/2);
+        var BRy = p[5]*degCos(vDeg)-((degSin(hDeg)*yMax)/2);
+        
+        var TRx = p[6]*degCos(hDeg)+((degSin(vDeg)*xMax)/2);
+        var TRy = p[7]*degCos(vDeg)+((degSin(hDeg)*yMax)/2);
+
+        // Normalize position
+        var xOffset = BLx < TLx ? BLx : TLx;
+        var yOffset = BLy < BRy ? BLy : BRy;
+
+        var BLx = BLx-xOffset;
+        var BLy = BLy-yOffset;
+
+        var TLx = TLx-xOffset;
+        var TLy = TLy-yOffset;
+
+        var BRx = BRx-xOffset;
+        var BRy = BRy-yOffset;
+        
+        var TRx = TRx-xOffset;
+        var TRy = TRy-yOffset;
+
+        // Normalize scale
+        var xScale  = xMax / (TRx > BLx ? TRx : BLx);
+        var yScale  = yMax / (TLy > TRy ? TLy : TRy);
+
+        var BLx = BLx*xScale;
+        var BLy = BLy*yScale;
+
+        var TLx = TLx*xScale;
+        var TLy = TLy*yScale;
+
+        var BRx = BRx*xScale;
+        var BRy = BRy*yScale;
+        
+        var TRx = TRx*xScale;
+        var TRy = TRy*yScale;
+
+        return [BLx, BLy, TLx, TLy, BRx, BRy, TRx, TRy];
+    }
+
+    var xMax = this.bitmap.width;
+    var yMax = this.bitmap.height;
+    var srcPts = [0, 0, 0, yMax, xMax, 0, xMax, yMax];
+    var dstPts = genDstPts(hDeg, vDeg, srcPts);
+    console.log(dstPts);
+
+    // Create perspective transformer
+    var PerspT = require('perspective-transform')
+    var perspT = PerspT(srcPts, dstPts);
+    function skewPoint(x, y) {
+        var dstPt = perspT.transform(x, y);
+        return {
+            x : Math.floor(dstPt[0]),
+            y : Math.floor(dstPt[1])
+        };
+    }
+
+    var farCorner = skewPoint(this.bitmap.width, this.bitmap.height);
+    console.log(farCorner);
+    var newWidth = this.bitmap.width;
+    var newHeight = this.bitmap.height;
+
+    var dstBuffer = new Buffer(newWidth*newHeight*4);
+    
+    for (var x = 0; x < this.bitmap.width; x++) {
+        for (var y = this.bitmap.height - 1; y >= 0; y--) {
+            var dst = skewPoint(x, y);
+            var srcOffset = (this.bitmap.width * y + x) << 2;
+            var dstOffset = (newWidth * dst.y + dst.x) << 2;
+            var data = this.bitmap.data.readUInt32BE(srcOffset, true);
+            dstBuffer.writeUInt32BE(data, dstOffset, true);
+        }
+    }
+    this.bitmap.width = newWidth;
+    this.bitmap.height = newHeight;
+    this.bitmap.data = dstBuffer;
+    
+    if (isNodePattern(cb)) return cb.call(this, null, this);
+    else return this;
+};
+
 /**
  * Converts the image to a buffer
  * @param mime the mime type of the image buffer to be created
