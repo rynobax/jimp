@@ -2102,6 +2102,14 @@ Jimp.prototype.skew = function (hDeg, vDeg, cb) {
         return throwError.call(this, "vDeg must be a number", cb);
 
     function genDstPts(hDeg, vDeg, p){
+        // TODO: What to do with resizing
+        function dbgPrint(){
+            console.log('BL ('+Math.round(BLx)+', '+Math.round(BLy)+')');
+            console.log('TL ('+Math.round(TLx)+', '+Math.round(TLy)+')');
+            console.log('BR ('+Math.round(BRx)+', '+Math.round(BRy)+')');
+            console.log('TR ('+Math.round(TRx)+', '+Math.round(TRy)+')');
+        }
+
         function degCos(x){
             return Math.cos((x % 360) * Math.PI / 180);
         }
@@ -2113,17 +2121,36 @@ Jimp.prototype.skew = function (hDeg, vDeg, cb) {
         var xMax = p[6];
         var yMax = p[7];
 
-        var BLx = p[0]*degCos(hDeg)+((degSin(vDeg)*xMax)/2);
-        var BLy = p[1]*degCos(vDeg)+((degSin(hDeg)*yMax)/2);
-
-        var TLx = p[2]*degCos(hDeg)+((degSin(vDeg)*xMax)/2);
-        var TLy = p[3]*degCos(vDeg)-((degSin(hDeg)*yMax)/2);
-
-        var BRx = p[4]*degCos(hDeg)+((degSin(vDeg)*xMax)/2);
-        var BRy = p[5]*degCos(vDeg)-((degSin(hDeg)*yMax)/2);
+        const xFactor = (xMax/2);
+        const yFactor = (yMax/2);
+        const distFactor = 5;
         
-        var TRx = p[6]*degCos(hDeg)+((degSin(vDeg)*xMax)/2);
-        var TRy = p[7]*degCos(vDeg)+((degSin(hDeg)*yMax)/2);
+        const hxm = (degSin(hDeg)*xFactor);
+        const hym = ((1-degCos(hDeg))*(yFactor/distFactor));
+        const vxm = ((1-degCos(vDeg))*(xFactor/distFactor)); 
+        const vym = (degSin(vDeg)*yFactor);
+        console.log('hxm: ', hxm);
+        console.log('hym: ', hym);
+        console.log('vxm: ', vxm);
+        console.log('vym: ', vym);
+
+        var BLx = p[0]+hxm-vxm;
+        var BLy = p[1]+hym+vym;
+
+        var TLx = p[2]+hxm+vxm;
+        var TLy = p[3]-hym-vym;//-
+
+        var BRx = p[4]-hxm+vxm;//-
+        var BRy = p[5]-hym+vym;
+        
+        var TRx = p[6]-hxm-vxm;//-
+        var TRy = p[7]+hym-vym;//-
+
+        
+        console.log('***********BEFORE***********');
+        dbgPrint();
+        console.log('****************************');
+        
 
         // Normalize position
         var xOffset = BLx < TLx ? BLx : TLx;
@@ -2141,21 +2168,35 @@ Jimp.prototype.skew = function (hDeg, vDeg, cb) {
         var TRx = TRx-xOffset;
         var TRy = TRy-yOffset;
 
-        // Normalize scale
-        var xScale  = xMax / (TRx > BLx ? TRx : BLx);
-        var yScale  = yMax / (TLy > TRy ? TLy : TRy);
-
-        var BLx = BLx*xScale;
-        var BLy = BLy*yScale;
-
-        var TLx = TLx*xScale;
-        var TLy = TLy*yScale;
-
-        var BRx = BRx*xScale;
-        var BRy = BRy*yScale;
+       
+        console.log('***********NORMPOS***********');
+        dbgPrint();
+        console.log('****************************');
         
-        var TRx = TRx*xScale;
-        var TRy = TRy*yScale;
+
+        // Normalize scale
+        
+        var xScale = xMax / (TRx > BLx ? TRx : BLx);
+        var yScale = yMax / (TLy > TRy ? TLy : TRy);
+        var scale = xScale < yScale ? xScale : yScale;
+
+        var BLx = BLx*scale;
+        var BLy = BLy*scale;
+
+        var TLx = TLx*scale;
+        var TLy = TLy*scale;
+
+        var BRx = BRx*scale;
+        var BRy = BRy*scale;
+        
+        var TRx = TRx*scale;
+        var TRy = TRy*scale;
+        
+        
+        console.log('***********NORMSC***********');
+        dbgPrint();
+        console.log('****************************');
+        
 
         return [BLx, BLy, TLx, TLy, BRx, BRy, TRx, TRy];
     }
@@ -2164,7 +2205,9 @@ Jimp.prototype.skew = function (hDeg, vDeg, cb) {
     var yMax = this.bitmap.height;
     var srcPts = [0, 0, 0, yMax, xMax, 0, xMax, yMax];
     var dstPts = genDstPts(hDeg, vDeg, srcPts);
-    console.log(dstPts);
+    console.log('');
+    console.log('vDeg: ', vDeg);
+    console.log('dstPts: ', dstPts.map(e => Math.round(e)));
 
     // Create perspective transformer
     var PerspT = require('perspective-transform')
@@ -2178,7 +2221,7 @@ Jimp.prototype.skew = function (hDeg, vDeg, cb) {
     }
 
     var farCorner = skewPoint(this.bitmap.width, this.bitmap.height);
-    console.log(farCorner);
+    var nearCorner = skewPoint(0, 0);
     var newWidth = this.bitmap.width;
     var newHeight = this.bitmap.height;
 
